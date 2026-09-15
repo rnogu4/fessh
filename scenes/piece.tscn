@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://d31snj7tgq8os"]
+
+[ext_resource type="Texture2D" uid="uid://c7maypftkf44j" path="res://sprites/pieces/reef_ith'ka_(pawn).png" id="1_gebih"]
+
+[node name="Piece" type="Node2D" unique_id=1525516542]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1475365452]
+texture_filter = 1
+texture = ExtResource("1_gebih")
