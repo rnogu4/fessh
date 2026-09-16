@@ -10,11 +10,9 @@ var board_pos: Vector2i
 var sprite_2d: Sprite2D
 
 func _ready() -> void:
-	print("READY firing, sprite_2d = ", sprite_2d)
-	print("READY on instance ", get_instance_id(), " sprite_2d = ", sprite_2d)
+	pass
 
 func setup(type: String, p_team: Team, pos: Vector2i, texture: Texture2D):
-	print("SETUP on instance ", get_instance_id(), " sprite_2d = ", sprite_2d)
 	piece_type = type
 	team = p_team
 	board_pos = pos

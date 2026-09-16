@@ -2,7 +2,7 @@ extends TileMapLayer
 class_name Board
 
 const WIDTH = 9
-const HEIGHT = 8
+const HEIGHT = 12
 const GREEN_TILE = Vector2i(0, 0)  # atlas coords for green tile
 const RED_TILE = Vector2i(0, 1)    # atlas coords for red tile
 const SOURCE_ID = 0                # tileset source id
