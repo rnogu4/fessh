@@ -23,9 +23,13 @@ var knight_offsets := {
 		Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, -2) # bottom left (neg, neg)
 	]
 }
-var rook_offsets := {
+var rook_offsets1 := {
 	"a_rook": [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)],  # right, left, down, up (to be iterated)
 	"r_rook": [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)],  # right, left, down, up (to be iterated)
+}
+var rook_offsets2 := {
+	"a_rook": [Vector2i(1,1), Vector2i(-1,1), Vector2i(1,-1), Vector2i(-1,-1)],  # corners
+	"r_rook": [Vector2i(1,1), Vector2i(-1,1), Vector2i(1,-1), Vector2i(-1,-1)],  # corners
 }
 var bishop_offsets1 := {
 	"a_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,-1)],   # immediate cardinals (static)
@@ -68,12 +72,21 @@ func build_knight_table():
 				var cell = Vector2i(x, y)
 				knight_table[piece_type][cell] = find_knight_potential_moves(cell, knight_offsets[piece_type])
 func build_rook_table():
-	for piece_type in rook_offsets:
+	for piece_type in rook_offsets1:
 		rook_table[piece_type] = {}
 		for y in HEIGHT:
 			for x in WIDTH:
 				var cell = Vector2i(x, y)
-				rook_table[piece_type][cell] = find_rook_potential_moves(cell, rook_offsets[piece_type])
+				
+				var sliding = find_rook_potential_moves1(cell, rook_offsets1[piece_type])
+				var diagonal = find_rook_potential_moves2(cell, rook_offsets2[piece_type])
+				
+				# wrap diagonals as single square ray
+				var wrapped_diagonal := []
+				for dest in diagonal:
+					wrapped_diagonal.append([dest])
+				
+				rook_table[piece_type][cell] = sliding + wrapped_diagonal
 func build_bishop_table():
 	for piece_type in bishop_offsets1:
 		bishop_table[piece_type] = {}
@@ -100,7 +113,7 @@ func find_knight_potential_moves(cell: Vector2i, offsets: Array) -> Array:
 			moves.append(dest)
 	return moves
 
-func find_rook_potential_moves(cell: Vector2i, offsets: Array) -> Array:
+func find_rook_potential_moves1(cell: Vector2i, offsets: Array) -> Array:
 	var moves := []
 	for offset in offsets:
 		var move := []
@@ -110,6 +123,14 @@ func find_rook_potential_moves(cell: Vector2i, offsets: Array) -> Array:
 			move.append(current)
 			current += offset
 		moves.append(move)
+	return moves
+func find_rook_potential_moves2(cell: Vector2i, offsets: Array) -> Array:
+	var moves := []
+	for offset in offsets:
+		var dest = cell + offset
+		# check if it's in the bounds of the map
+		if _is_in_bounds(dest):
+			moves.append(dest)
 	return moves
 
 func find_bishop_potential_moves(cell: Vector2i, offsets: Array) -> Array:

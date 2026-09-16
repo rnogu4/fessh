@@ -201,42 +201,69 @@ func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
 		else:
 			# diagonal — capture only
 			var occupant = get_piece_at(potential_move)
-			if occupant != null and occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
-				print("no king or queen")
+			# pawn can't capture queen
+			if occupant != null and occupant.team != piece.team && !occupant.piece_type.contains("queen"):
 				results.append(potential_move)
 	return results
 
 func valid_knight_moves(from: Vector2i, piece: Piece) -> Array:
-	return []
+	var results: Array = []
+	var moves_at_position = MoveTable.knight_table[piece.piece_type][from]
+	for potential_move in moves_at_position:
+		var occupant = get_piece_at(potential_move)
+		if occupant == null:
+			results.append(potential_move)
+		# knight can't capture king or bishop
+		elif occupant.team != piece.team && (!occupant.piece_type.contains("bishop") && !occupant.piece_type.contains("king")):
+			results.append(potential_move)
+	return results
 
 func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
-	return []
+	var results: Array = []
+	var moves_at_position = MoveTable.rook_table[piece.piece_type][from]
+
+	for potential_move in moves_at_position:
+		for step in potential_move:
+			var occupant = get_piece_at(step)
+			if occupant == null:
+				results.append(step)
+			# rook can't capture pawns or king
+			elif occupant.team != piece.team && (!occupant.piece_type.contains("pawn") && !occupant.piece_type.contains("king")):
+				results.append(step)
+				break
+			else:
+				break
+	return results
 
 func valid_bishop_moves(from: Vector2i, piece: Piece) -> Array:
+	var results: Array = []
+	var moves_at_position = MoveTable.bishop_table[piece.piece_type][from]
 	return []
 
 func get_all_valid_moves(from: Vector2i) -> Array:
 	var piece = get_piece_at(from)
 	if piece == null:
 		return []
-
+	
 	var results: Array = []
 
 	if MoveTable.pawn_table.has(piece.piece_type):
 		results = valid_pawn_moves(from, piece)
 
 	if MoveTable.knight_table.has(piece.piece_type):
-		for move in MoveTable.knight_table[piece.piece_type][from]:
-			if is_valid_move(from, move):
-				results.append(move)
+		results = valid_knight_moves(from, piece)
+		#for move in MoveTable.knight_table[piece.piece_type][from]:
+		#	if is_valid_move(from, move):
+		#		results.append(move)
 
 	if MoveTable.rook_table.has(piece.piece_type):
-		for move in MoveTable.rook_table[piece.piece_type][from]:
-			for step_cell in move:
-				if is_valid_move(from, step_cell):
-					results.append(step_cell)
-				if get_piece_at(step_cell) != null:
-					break  # blocked — stop walking this path
+		results = valid_rook_moves(from, piece)
+		#for move in MoveTable.rook_table[piece.piece_type][from]:
+		#	for step_cell in move:
+		#		if is_valid_move(from, step_cell):
+		#			results.append(step_cell)
+		#		if get_piece_at(step_cell) != null:
+		#			break  # blocked — stop walking this path
 
 	return results
 
