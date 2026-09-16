@@ -3,104 +3,126 @@ extends Node
 const WIDTH = 9
 const HEIGHT = 12
 
-var leaper_offsets := {
+var pawn_offsets := {
+	# forward 1, forward 2, backward 1, diag 1, diag 2
+	"a_pawn": [Vector2i(0,1), Vector2i(0,2), Vector2i(0,-1), Vector2i(1,1), Vector2i(-1,1)], 
+	# forward 1, forward 2, backward 1, diag 1, diag 2
+	"r_pawn": [Vector2i(0,-1), Vector2i(0,-2), Vector2i(0,1), Vector2i(1,-1), Vector2i(-1,-1)] 
+}
+var knight_offsets := {
 	"a_knight": [
-		Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, 2), # top right (pos,pos)
-		Vector2i(1, -2), Vector2i(2, -1), Vector2i(2, -2), # bottom right (pos, neg)
-		Vector2i(-1, 2), Vector2i(-2, 1), Vector2i(-2, 2), # top left (neg, pos)
+		Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, 2),      # top right (pos,pos)
+		Vector2i(1, -2), Vector2i(2, -1), Vector2i(2, -2),   # bottom right (pos, neg)
+		Vector2i(-1, 2), Vector2i(-2, 1), Vector2i(-2, 2),   # top left (neg, pos)
 		Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, -2) # bottom left (neg, neg)
 	],
 	"r_knight": [
-		Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, 2), # top right (pos,pos)
-		Vector2i(1, -2), Vector2i(2, -1), Vector2i(2, -2), # bottom right (pos, neg)
-		Vector2i(-1, 2), Vector2i(-2, 1), Vector2i(-2, 2), # top left (neg, pos)
+		Vector2i(1, 2), Vector2i(2, 1), Vector2i(2, 2),      # top right (pos,pos)
+		Vector2i(1, -2), Vector2i(2, -1), Vector2i(2, -2),   # bottom right (pos, neg)
+		Vector2i(-1, 2), Vector2i(-2, 1), Vector2i(-2, 2),   # top left (neg, pos)
 		Vector2i(-1, -2), Vector2i(-2, -1), Vector2i(-2, -2) # bottom left (neg, neg)
 	]
 }
-
-var slider_offsets := {
-	"a_rook": [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)],  # rook-like
-	"r_rook": [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)],  # rook-like
-	"a_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,-1)],  # bishop-like
-	"r_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)],  # bishop-like
+var rook_offsets := {
+	"a_rook": [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)],  # right, left, down, up (to be iterated)
+	"r_rook": [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)],  # right, left, down, up (to be iterated)
+}
+var bishop_offsets1 := {
+	"a_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,-1)],   # immediate cardinals (static)
+	"r_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)],  # immediate cardinals (static)
+}
+var bishop_offsets2 := {
+	"a_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,-1)],   # diagonals
+	"r_bishop": [Vector2i(1,1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(-1,-1)],  # diagonals
 }
 
-var pawn_offsets := {
-	"a_pawn": [Vector2i(0,1), Vector2i(0,2), Vector2i(0,-1)],
-	"r_pawn": [Vector2i(0,-1), Vector2i(0,-2), Vector2i(0,1)]
-}
-
-var leaper_table := {}  # leaper_table[piece_type][cell] = Array[Vector2i]
-var slider_table := {}  # slider_table[piece_type][cell] = Array[Array[Vector2i]]
-var pawn_table := {}  # pawn_table[piece_type][cell] = Array[Vector2i]
+var pawn_table := {}    # pawn_table   [piece_type][cell] = Array[Vector2i]
+var knight_table := {}  # knight_table [piece_type][cell] = Array[Vector2i]
+var rook_table := {}    # rook_table   [piece_type][cell] = Array[Array[Vector2i]]
+var bishop_table := {}  # rook_table   [piece_type][cell] = Array[Array[Vector2i]]
 
 func _ready():
 	build_tables()
 
 func build_tables():
-	for piece_type in leaper_offsets:
-		leaper_table[piece_type] = {}
-		for y in HEIGHT:
-			for x in WIDTH:
-				var cell = Vector2i(x, y)
-				leaper_table[piece_type][cell] = _compute_leaper_rays(cell, leaper_offsets[piece_type])
-	for piece_type in slider_offsets:
-		slider_table[piece_type] = {}
-		for y in HEIGHT:
-			for x in WIDTH:
-				var cell = Vector2i(x, y)
-				slider_table[piece_type][cell] = _compute_slider_rays(cell, slider_offsets[piece_type])
+	build_pawn_table()
+	build_knight_table()
+	build_rook_table()
+
+func build_pawn_table():
 	for piece_type in pawn_offsets:
+		# stores offsets in pawn table dictionary
 		pawn_table[piece_type] = {}
+		# for each tile, precalculate the valid pawn moves
 		for y in HEIGHT:
 			for x in WIDTH:
 				var cell = Vector2i(x, y)
-				pawn_table[piece_type][cell] = _compute_pawn_rays(cell, pawn_offsets[piece_type])
+				pawn_table[piece_type][cell] = find_pawn_potential_moves(cell, pawn_offsets[piece_type])
+func build_knight_table():
+	for piece_type in knight_offsets:
+		# stores offsets in knight table dictionary
+		knight_table[piece_type] = {}
+		# for each tile, precalculate the valid knight moves
+		for y in HEIGHT:
+			for x in WIDTH:
+				var cell = Vector2i(x, y)
+				knight_table[piece_type][cell] = find_knight_potential_moves(cell, knight_offsets[piece_type])
+func build_rook_table():
+	for piece_type in rook_offsets:
+		rook_table[piece_type] = {}
+		for y in HEIGHT:
+			for x in WIDTH:
+				var cell = Vector2i(x, y)
+				rook_table[piece_type][cell] = find_rook_potential_moves(cell, rook_offsets[piece_type])
+func build_bishop_table():
+	for piece_type in bishop_offsets1:
+		bishop_table[piece_type] = {}
+		for y in HEIGHT:
+			for x in WIDTH:
+				var cell = Vector2i(x, y)
+				bishop_table[piece_type][cell] = find_bishop_potential_moves(cell, bishop_offsets1[piece_type])
 
-func _compute_leaper_rays(cell: Vector2i, offsets: Array) -> Array:
-	var rays := []
+func find_pawn_potential_moves(cell: Vector2i, offsets: Array) -> Array:
+	var moves := []
 	for offset in offsets:
+		# check if it's in the bounds of the map
 		var dest = cell + offset
 		if _is_in_bounds(dest):
-			rays.append(dest)
-	return rays
+			moves.append(dest)
+	return moves
 
-func _compute_pawn_rays(cell: Vector2i, offsets: Array) -> Array:
-	var rays := []
-	var dir = offsets[0]  # single-step offset, e.g. Vector2i(0,-1)
-	
-	for o in offsets:
-		if abs(o.x) + abs(o.y) < abs(dir.x) + abs(dir.y):
-			dir = o
-
-	# forward squares (straight ahead, 1 and 2)
+func find_knight_potential_moves(cell: Vector2i, offsets: Array) -> Array:
+	var moves := []
 	for offset in offsets:
 		var dest = cell + offset
+		# check if it's in the bounds of the map
 		if _is_in_bounds(dest):
-			rays.append(dest)
+			moves.append(dest)
+	return moves
 
-	# diagonal captures (forward-diagonal and backward-diagonal)
-	var diag_offsets = [
-		Vector2i(-1, dir.y), Vector2i(1, dir.y),
-		Vector2i(-1, -dir.y), Vector2i(1, -dir.y)
-	]
-	for offset in diag_offsets:
-		var diag = cell + offset
-		if _is_in_bounds(diag):
-			rays.append(diag)
-
-	return rays
-
-func _compute_slider_rays(cell: Vector2i, offsets: Array) -> Array:
-	var rays := []
+func find_rook_potential_moves(cell: Vector2i, offsets: Array) -> Array:
+	var moves := []
 	for offset in offsets:
-		var ray := []
+		var move := []
 		var current = cell + offset
+		# check if it's in the bounds of the map
 		while _is_in_bounds(current):
-			ray.append(current)
+			move.append(current)
 			current += offset
-		rays.append(ray)
-	return rays
+		moves.append(move)
+	return moves
+
+func find_bishop_potential_moves(cell: Vector2i, offsets: Array) -> Array:
+		var moves := []
+		for offset in offsets:
+			var move := []
+			var current = cell + offset
+			# check if it's in the bounds of the map
+			while _is_in_bounds(current):
+				move.append(current)
+				current += offset
+			moves.append(move)
+		return moves
 
 func _is_in_bounds(cell: Vector2i) -> bool:
 	return cell.x >= 0 and cell.x < WIDTH and cell.y >= 0 and cell.y < HEIGHT

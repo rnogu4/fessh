@@ -1,4 +1,5 @@
 extends Node
+class_name GameManager
 
 const PIECE_SCENE = preload("res://scenes/piece.tscn")
 const VALID_SPOT_TEXTURE = preload("res://sprites/tiles/valid_spot_2.0.png")
@@ -46,7 +47,7 @@ var starting_layout = [
 	["a_bishop", Piece.Team.ABYSSAL, 6, 0],
 	["a_queen", Piece.Team.ABYSSAL, 3, 0],
 	["a_queen", Piece.Team.ABYSSAL, 5, 0],
-	["a_king", Piece.Team.ABYSSAL, 4, 0],
+	["a_king", Piece.Team.ABYSSAL, 4, 11],
 	
 	["r_pawn", Piece.Team.REEF, 0, 10],
 	["r_pawn", Piece.Team.REEF, 1, 10],
@@ -65,7 +66,7 @@ var starting_layout = [
 	["r_bishop", Piece.Team.REEF, 6, 11],
 	["r_queen", Piece.Team.REEF, 3, 11],
 	["r_queen", Piece.Team.REEF, 5, 11],
-	["r_king", Piece.Team.REEF, 4, 11]
+	["r_king", Piece.Team.REEF, 4, 0]
 ]
 
 func _ready() -> void:
@@ -168,43 +169,51 @@ func clear_valid_move_highlights() -> void:
 		sprite.queue_free()
 	highlight_sprites.clear()
 
-func get_pawn_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
 	var results: Array = []
-	var candidates = MoveTable.pawn_table[piece.piece_type][from]
+	var moves_at_position = MoveTable.pawn_table[piece.piece_type][from]
 	var dir = MoveTable.pawn_offsets[piece.piece_type][0]  # true forward direction
 
 	var blocked_forward = false
 	var blocked_backward = false
 
-	for cell in candidates:
-		if cell.x == from.x:
-			var is_forward = sign(cell.y - from.y) == sign(dir.y)
+	for potential_move in moves_at_position:
+		if potential_move.x == from.x:
+			var is_forward = sign(potential_move.y - from.y) == sign(dir.y)
 			if is_forward:
 				if blocked_forward:
 					continue
-				var occupant = get_piece_at(cell)
+				var occupant = get_piece_at(potential_move)
 				if occupant == null:
-					results.append(cell)
+					results.append(potential_move)
 				else:
 					blocked_forward = true  # forward straight never captures
 			else:
 				if blocked_backward:
 					continue
-				var occupant = get_piece_at(cell)
+				var occupant = get_piece_at(potential_move)
 				if occupant == null:
-					results.append(cell)
-				elif occupant.team != piece.team:
-					results.append(cell)   # backward straight CAN capture
-					blocked_backward = true  # still can't pass beyond it
+					results.append(potential_move)
+				elif occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
+					results.append(potential_move)   # backward straight CAN capture
 				else:
 					blocked_backward = true  # own piece blocks
 		else:
-			# diagonal — capture only, any of the 4 directions
-			var target = get_piece_at(cell)
-			if target != null and target.team != piece.team:
-				results.append(cell)
-
+			# diagonal — capture only
+			var occupant = get_piece_at(potential_move)
+			if occupant != null and occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
+				print("no king or queen")
+				results.append(potential_move)
 	return results
+
+func valid_knight_moves(from: Vector2i, piece: Piece) -> Array:
+	return []
+
+func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
+	return []
+
+func valid_bishop_moves(from: Vector2i, piece: Piece) -> Array:
+	return []
 
 func get_all_valid_moves(from: Vector2i) -> Array:
 	var piece = get_piece_at(from)
@@ -214,20 +223,20 @@ func get_all_valid_moves(from: Vector2i) -> Array:
 	var results: Array = []
 
 	if MoveTable.pawn_table.has(piece.piece_type):
-		results = get_pawn_moves(from, piece)
+		results = valid_pawn_moves(from, piece)
 
-	if MoveTable.leaper_table.has(piece.piece_type):
-		for ray in MoveTable.leaper_table[piece.piece_type][from]:
-			if is_valid_move(from, ray):
-				results.append(ray)
+	if MoveTable.knight_table.has(piece.piece_type):
+		for move in MoveTable.knight_table[piece.piece_type][from]:
+			if is_valid_move(from, move):
+				results.append(move)
 
-	if MoveTable.slider_table.has(piece.piece_type):
-		for ray in MoveTable.slider_table[piece.piece_type][from]:
-			for step_cell in ray:
+	if MoveTable.rook_table.has(piece.piece_type):
+		for move in MoveTable.rook_table[piece.piece_type][from]:
+			for step_cell in move:
 				if is_valid_move(from, step_cell):
 					results.append(step_cell)
 				if get_piece_at(step_cell) != null:
-					break  # blocked — stop walking this ray
+					break  # blocked — stop walking this path
 
 	return results
 
@@ -243,13 +252,13 @@ func is_valid_move(from: Vector2i, to: Vector2i) -> bool:
 		return false  # can't capture your own piece
 		
 	if MoveTable.pawn_table.has(piece.piece_type):
-		return to in get_pawn_moves(from, piece)
+		return to in valid_pawn_moves(from, piece)
 		
-	if MoveTable.leaper_table.has(piece.piece_type):
-		return to in MoveTable.leaper_table[piece.piece_type][from]
+	if MoveTable.knight_table.has(piece.piece_type):
+		return to in MoveTable.knight_table[piece.piece_type][from]
 		
-	if MoveTable.slider_table.has(piece.piece_type):
-		for ray in MoveTable.slider_table[piece.piece_type][from]:
+	if MoveTable.rook_table.has(piece.piece_type):
+		for ray in MoveTable.rook_table[piece.piece_type][from]:
 			for step_cell in ray:
 				if step_cell == to:
 					return true
