@@ -2,7 +2,7 @@ extends Node
 class_name GameManager
 
 const PIECE_SCENE = preload("res://scenes/piece.tscn")
-const VALID_SPOT_TEXTURE = preload("res://sprites/tiles/valid_spot_2.0.png")
+const VALID_SPOT_TEXTURE = preload("res://assets/sprites/tiles/valid_spot_2.0.png")
 
 @onready var board: TileMapLayer = $"../World/Board"
 @onready var pieces_layer: Node2D = $"../World/PiecesLayer"
@@ -15,18 +15,18 @@ var drag_start_cell: Vector2i
 var highlight_sprites: Array[Sprite2D] = []
 
 var textures := {
-	"a_pawn": preload("res://sprites/pieces/abyssal_ith'ka_(pawn).png"),
-	"a_rook": preload("res://sprites/pieces/abyssal_vraalth_(rook).png"),
-	"a_knight": preload("res://sprites/pieces/abyssal_miraq'th_(knight).png"),
-	"a_bishop": preload("res://sprites/pieces/abyssal_sygnorae_(bishop).png"),
-	"a_queen": preload("res://sprites/pieces/abyssal_nyxara_(queen).png"),
-	"a_king": preload("res://sprites/pieces/abyssal_korrathum_(king).png"),
-	"r_pawn": preload("res://sprites/pieces/reef_ith'ka_(pawn).png"),
-	"r_rook": preload("res://sprites/pieces/reef_vraalth_(rook).png"),
-	"r_knight": preload("res://sprites/pieces/reef_miraq'th_(knight).png"),
-	"r_bishop": preload("res://sprites/pieces/reef_sygnorae_(bishop).png"),
-	"r_queen": preload("res://sprites/pieces/reef_nyxara_(queen).png"),
-	"r_king": preload("res://sprites/pieces/reef_korrathum_(king).png")
+	"a_pawn": preload("res://assets/sprites/pieces/abyssal_ith'ka_(pawn).png"),
+	"a_rook": preload("res://assets/sprites/pieces/abyssal_vraalth_(rook).png"),
+	"a_knight": preload("res://assets/sprites/pieces/abyssal_miraq'th_(knight).png"),
+	"a_bishop": preload("res://assets/sprites/pieces/abyssal_sygnorae_(bishop).png"),
+	"a_queen": preload("res://assets/sprites/pieces/abyssal_nyxara_(queen).png"),
+	"a_king": preload("res://assets/sprites/pieces/abyssal_korrathum_(king).png"),
+	"r_pawn": preload("res://assets/sprites/pieces/reef_ith'ka_(pawn).png"),
+	"r_rook": preload("res://assets/sprites/pieces/reef_vraalth_(rook).png"),
+	"r_knight": preload("res://assets/sprites/pieces/reef_miraq'th_(knight).png"),
+	"r_bishop": preload("res://assets/sprites/pieces/reef_sygnorae_(bishop).png"),
+	"r_queen": preload("res://assets/sprites/pieces/reef_nyxara_(queen).png"),
+	"r_king": preload("res://assets/sprites/pieces/reef_korrathum_(king).png")
 }
 var starting_layout = [
 	["a_pawn", Piece.Team.ABYSSAL, 0, 1],
@@ -71,6 +71,7 @@ var starting_layout = [
 func _ready() -> void:
 	init_grid()
 	spawn_pieces()
+
 func init_grid():
 	grid.clear()
 	for y in Board.HEIGHT:
@@ -111,7 +112,10 @@ func move_piece(from: Vector2i, to: Vector2i):
 	grid[to.y][to.x] = piece
 	piece.board_pos = to
 	piece.position = board.map_to_local(to)
-	
+	_on_move_made(piece, to)
+
+func _on_move_made(piece: Piece, to: Vector2i) -> void:
+	TurnTracker.end_turn()
 #-----------Handles Piece Movement w/ Mouse-----------
 func _unhandled_input(event: InputEvent) -> void:
 	var mouse_world_pos = board.get_global_mouse_position()
@@ -130,11 +134,11 @@ func try_start_drag() -> void:
 	var piece = get_piece_at(cell)
 	if piece == null:
 		return
-	dragging_piece = piece
-	drag_start_cell = cell
-	piece.z_index = 2
-	
-	show_valid_move_highlights(cell)
+	if TurnTracker.get_current_team_number(TurnTracker.get_current_team()) == piece.team:
+		dragging_piece = piece
+		drag_start_cell = cell
+		piece.z_index = 2
+		show_valid_move_highlights(cell)
 
 func try_drop() -> void:
 	var mouse_world_pos = board.get_global_mouse_position()
@@ -233,14 +237,13 @@ func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
 func valid_bishop_moves(from: Vector2i, piece: Piece) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.bishop_table[piece.piece_type][from]
-	
 	for potential_move in moves_at_position:
 		for step in potential_move:
 			var occupant = get_piece_at(step)
 			if occupant == null:
 				results.append(step)
 			# bishop can't capture rook, pawns or king
-			elif occupant.team != piece.team && (!occupant.piece_type.contains("rook") && !occupant.piece_type.contains("pawn") && !occupant.piece_type.contains("king")):
+			elif occupant.team != piece.team && (!occupant.piece_type.contains("rook") && !occupant.piece_type.contains("king")):
 				results.append(step)
 				break
 			else:

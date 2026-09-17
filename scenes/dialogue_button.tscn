@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://bhmkvax6s2g6o"]
+
+[ext_resource type="FontFile" uid="uid://b533fe7kydimb" path="res://assets/fonts/PixelOperator-Bold.ttf" id="1_irtb7"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_3t5ss"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_irtb7"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_8i3hv"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_dolk3"]
+
+[node name="DialogueButton" type="Button" unique_id=1431553076]
+offset_right = 8.0
+offset_bottom = 8.0
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 0.9411765, 0, 1)
+theme_override_colors/font_pressed_color = Color(1, 0.9411765, 0, 1)
+theme_override_colors/font_hover_color = Color(1, 0.9411765, 0, 1)
+theme_override_fonts/font = ExtResource("1_irtb7")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_3t5ss")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_irtb7")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_8i3hv")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_dolk3")

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dpcaw88enymfx"]
 
-[ext_resource type="Texture2D" uid="uid://cma7fbf5b3dj" path="res://assets/sprites/tiles/tilemap.png" id="1_0wfyh"]
+[ext_resource type="Texture2D" uid="uid://cma7fbf5b3dj" path="res://sprites/tiles/tilemap.png" id="1_0wfyh"]
 [ext_resource type="Script" uid="uid://dqglu3yp4c7vd" path="res://scripts/board.gd" id="1_o5qli"]
 [ext_resource type="Script" uid="uid://dxwnktwla2hj5" path="res://scripts/game_manager.gd" id="1_sugp2"]
 [ext_resource type="Script" uid="uid://dll3612qoqxk3" path="res://scripts/turnHUD.gd" id="4_jyhfs"]
@@ -53,9 +53,7 @@ Bishop can't take Rook
 Queen can take almost all
 Nothing can take King
 King can't take anything
-
-Objective: Move your King
-to the Other Side"
+"
 
 [node name="TurnHUD" type="Control" parent="HUD" unique_id=1416470394]
 layout_mode = 3

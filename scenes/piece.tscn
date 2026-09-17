@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://d31snj7tgq8os"]
 
-[ext_resource type="Texture2D" uid="uid://c7maypftkf44j" path="res://sprites/pieces/reef_ith'ka_(pawn).png" id="1_gebih"]
+[ext_resource type="Texture2D" uid="uid://c7maypftkf44j" path="res://assets/sprites/pieces/reef_ith'ka_(pawn).png" id="1_gebih"]
 [ext_resource type="Script" uid="uid://oasxl7bdt1dj" path="res://scripts/piece.gd" id="1_s58gp"]
 
 [node name="Piece" type="Node2D" unique_id=1525516542]
