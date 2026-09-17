@@ -28,7 +28,6 @@ var textures := {
 	"r_queen": preload("res://sprites/pieces/reef_nyxara_(queen).png"),
 	"r_king": preload("res://sprites/pieces/reef_korrathum_(king).png")
 }
-
 var starting_layout = [
 	["a_pawn", Piece.Team.ABYSSAL, 0, 1],
 	["a_pawn", Piece.Team.ABYSSAL, 1, 1],
@@ -72,7 +71,6 @@ var starting_layout = [
 func _ready() -> void:
 	init_grid()
 	spawn_pieces()
-
 func init_grid():
 	grid.clear()
 	for y in Board.HEIGHT:
@@ -80,7 +78,6 @@ func init_grid():
 		for x in Board.WIDTH:
 			row.append(null)
 		grid.append(row)
-
 func spawn_pieces():
 	for entry in starting_layout:
 		var type: String = entry[0]
@@ -88,14 +85,12 @@ func spawn_pieces():
 		var x: int = entry[2]
 		var y: int = entry[3]
 		spawn_piece(type, team, Vector2i(x, y))
-
 func spawn_piece(type: String, team: Piece.Team, cell: Vector2i):
 	var piece = PIECE_SCENE.instantiate()
 	pieces_layer.add_child(piece)
 	piece.setup(type, team, cell, textures[type])
 	piece.position = board.map_to_local(cell)
 	grid[cell.y][cell.x] = piece
-
 func get_piece_at(cell: Vector2i) -> Piece:
 	if cell.y < 0 or cell.y >= grid.size():
 		return null
@@ -144,6 +139,9 @@ func try_start_drag() -> void:
 func try_drop() -> void:
 	var mouse_world_pos = board.get_global_mouse_position()
 	var target_cell = board.local_to_map(board.to_local(mouse_world_pos))
+
+# if the get_all_valid_moves() array contains target_cell, then move piece
+
 
 	if is_valid_move(drag_start_cell, target_cell):
 		move_piece(drag_start_cell, target_cell)
@@ -202,10 +200,9 @@ func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
 			# diagonal — capture only
 			var occupant = get_piece_at(potential_move)
 			# pawn can't capture queen
-			if occupant != null and occupant.team != piece.team && !occupant.piece_type.contains("queen"):
+			if occupant != null and occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
 				results.append(potential_move)
 	return results
-
 func valid_knight_moves(from: Vector2i, piece: Piece) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.knight_table[piece.piece_type][from]
@@ -217,7 +214,6 @@ func valid_knight_moves(from: Vector2i, piece: Piece) -> Array:
 		elif occupant.team != piece.team && (!occupant.piece_type.contains("bishop") && !occupant.piece_type.contains("king")):
 			results.append(potential_move)
 	return results
-
 func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.rook_table[piece.piece_type][from]
@@ -234,11 +230,49 @@ func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
 			else:
 				break
 	return results
-
 func valid_bishop_moves(from: Vector2i, piece: Piece) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.bishop_table[piece.piece_type][from]
-	return []
+	
+	for potential_move in moves_at_position:
+		for step in potential_move:
+			var occupant = get_piece_at(step)
+			if occupant == null:
+				results.append(step)
+			# bishop can't capture rook, pawns or king
+			elif occupant.team != piece.team && (!occupant.piece_type.contains("rook") && !occupant.piece_type.contains("pawn") && !occupant.piece_type.contains("king")):
+				results.append(step)
+				break
+			else:
+				break
+	return results
+func valid_queen_moves(from: Vector2i, piece: Piece) -> Array:
+	var results: Array = []
+	var moves_at_position = MoveTable.queen_table[piece.piece_type][from]
+	
+	for potential_moves in moves_at_position:
+		for move in potential_moves:
+			var occupant = get_piece_at(move)
+			if occupant == null:
+				results.append(move)
+			# queen can't capture king
+			elif occupant.team != piece.team && !occupant.piece_type.contains("king"):
+				results.append(move)
+				break
+			else:
+				break
+	return results
+func valid_king_moves(from: Vector2i, piece: Piece) -> Array:
+	var results: Array = []
+	var moves_at_position = MoveTable.king_table[piece.piece_type][from]
+	for potential_move in moves_at_position:
+		var occupant = get_piece_at(potential_move)
+		if occupant == null:
+			results.append(potential_move)
+		# king can't capture
+		elif occupant.team != piece.team || occupant.team == piece.team:
+			continue
+	return results
 
 func get_all_valid_moves(from: Vector2i) -> Array:
 	var piece = get_piece_at(from)
@@ -264,7 +298,13 @@ func get_all_valid_moves(from: Vector2i) -> Array:
 		#			results.append(step_cell)
 		#		if get_piece_at(step_cell) != null:
 		#			break  # blocked — stop walking this path
-
+	if MoveTable.bishop_table.has(piece.piece_type):
+		results = valid_bishop_moves(from, piece)
+	if MoveTable.queen_table.has(piece.piece_type):
+		results = valid_queen_moves(from, piece)
+	if MoveTable.king_table.has(piece.piece_type):
+		results = valid_king_moves(from, piece)
+	
 	return results
 
 func is_valid_move(from: Vector2i, to: Vector2i) -> bool:
@@ -273,17 +313,13 @@ func is_valid_move(from: Vector2i, to: Vector2i) -> bool:
 		return false
 	if to.x < 0 or to.x >= board.WIDTH or to.y < 0 or to.y >= board.HEIGHT:
 		return false
-		
 	var target_piece = get_piece_at(to)
 	if target_piece and target_piece.team == piece.team:
 		return false  # can't capture your own piece
-		
 	if MoveTable.pawn_table.has(piece.piece_type):
 		return to in valid_pawn_moves(from, piece)
-		
 	if MoveTable.knight_table.has(piece.piece_type):
 		return to in MoveTable.knight_table[piece.piece_type][from]
-		
 	if MoveTable.rook_table.has(piece.piece_type):
 		for ray in MoveTable.rook_table[piece.piece_type][from]:
 			for step_cell in ray:
@@ -292,4 +328,16 @@ func is_valid_move(from: Vector2i, to: Vector2i) -> bool:
 				if get_piece_at(step_cell) != null:
 					break  # something's in the way — this ray goes no further
 		return false
+	if MoveTable.bishop_table.has(piece.piece_type):
+		for ray in MoveTable.bishop_table[piece.piece_type][from]:
+			for step_cell in ray:
+				if step_cell == to:
+					return true
+				if get_piece_at(step_cell) != null:
+					break  # something's in the way — this ray goes no further
+		return false
+	if MoveTable.queen_table.has(piece.piece_type):
+		return to in valid_queen_moves(from, piece)
+	if MoveTable.king_table.has(piece.piece_type):
+		return to in valid_king_moves(from, piece)
 	return false
