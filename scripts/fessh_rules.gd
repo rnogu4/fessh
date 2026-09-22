@@ -63,15 +63,17 @@ func evaluate(board: SearchBoard, team: Piece.Team) -> float:
 	if opp_king != Vector2i(-1, -1):
 		score -= (SearchBoard.HEIGHT - abs(opp_king.y - opp_home)) * 10.0
 
-	# Material as a tiebreaker -- reweight per piece however fits Fessh's balance.
-	var values := {"pawn": 1.0, "knight": 3.0, "bishop": 3.0, "rook": 5.0, "queen": 9.0, "king": 0.0}
+	# Material as a tiebreaker -- MATERIAL_WEIGHT controls how much captures
+	# matter relative to king progress. Raise it if the bot still ignores
+	# good captures in favor of tiny king-progress gains; the king-progress
+	# term above tops out around 120, so material needs real weight to compete.
+	const MATERIAL_WEIGHT := 15.0
 	for y in SearchBoard.HEIGHT:
 		for x in SearchBoard.WIDTH:
 			var piece = board.get_piece_at(Vector2i(x, y))
 			if piece == null:
 				continue
-			var base_type: String = piece.piece_type.substr(2) # strips "a_"/"r_"
-			var value: float = values.get(base_type, 0.0)
+			var value: float = PieceValues.rank_value(piece.piece_type) * MATERIAL_WEIGHT
 			score += value if piece.team == team else -value
 
 	return score

@@ -22,10 +22,12 @@ func setup(_game_manager: GameManager, _rules: FesshRules = null) -> void:
 	# TurnTracker is assumed to be an autoload (matches how game_manager.gd
 	# already calls TurnTracker.end_turn() with no reference to it).
 	TurnTracker.turn_started.connect(_on_turn_started)
+	game_manager.powerup_manager.turn_continues.connect(_on_turn_continues)
 
 func set_level(level: int) -> void:
 	difficulty_level = level
 	profile = Difficulty.profile_for_level(level)
+	game_manager.powerup_manager.enabled = profile["powerups_enabled"]
 
 ## turn_started fires once from TurnTracker._ready() AND after every
 ## end_turn(), so this one hook covers the bot going first or going second.
@@ -33,6 +35,12 @@ func _on_turn_started(team: String, _turn_number: int) -> void:
 	if not game_manager.game_active:
 		return
 	if TurnTracker.get_current_team_number(team) == bot_team:
+		take_turn()
+
+## Extra Move doesn't go through TurnTracker (the turn doesn't pass), so it
+## needs its own hook to keep the bot acting.
+func _on_turn_continues(team: Piece.Team) -> void:
+	if game_manager.game_active and team == bot_team:
 		take_turn()
 
 func take_turn() -> void:
@@ -54,9 +62,22 @@ func _search_in_background(search_board: SearchBoard) -> void:
 
 func _apply_move(move: FesshMove) -> void:
 	if move != null:
+		_maybe_use_powerup(move)
 		game_manager.move_piece(move.from, move.to)
 	else:
 		push_warning("BotController: no legal move found for %s" % bot_team)
 	if thread != null:
 		thread.wait_to_finish()
 		thread = null
+
+## Intentionally basic v1: the search itself doesn't reason about powerups
+## (that would mean modeling currency and the shop inside the search tree,
+## a much bigger change), so this is a bolt-on policy, not a real strategy.
+## Right now: sometimes shield the piece it's about to move, if affordable.
+func _maybe_use_powerup(move: FesshMove) -> void:
+	if not game_manager.powerup_manager.enabled:
+		return
+	if randf() < 0.5:
+		var piece := game_manager.get_piece_at(move.from)
+		if piece != null:
+			game_manager.powerup_manager.buy_shield(bot_team, piece)

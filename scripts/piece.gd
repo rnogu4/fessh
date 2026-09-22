@@ -6,6 +6,7 @@ enum Team { REEF, ABYSSAL }
 @export var piece_type: String = ""
 @export var team: Team = Team.REEF
 var board_pos: Vector2i
+var shielded_turns: int = 0 # >0 while a Shield powerup is active on this piece
 
 var sprite_2d: Sprite2D
 

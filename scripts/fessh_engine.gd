@@ -115,9 +115,12 @@ func _negamax(board: SearchBoard, depth: int, alpha: float, beta: float, color: 
 			break # beta cutoff -- opponent already has a better option elsewhere
 	return best
 
-## Cheap move ordering so alpha-beta prunes more branches. Captures are tried
-## first here as a placeholder -- once you know what matters in Fessh
-## (e.g. moves that advance the king toward the goal rank), score and sort
-## by that instead for much better pruning.
+## Move ordering so alpha-beta prunes more branches, and so the highest-
+## value captures get explored (and preferred on ties) first -- same
+## PieceValues table the currency economy and evaluate() use.
 func _order_moves(moves: Array) -> void:
-	moves.sort_custom(func(a, b): return a.is_capture() and not b.is_capture())
+	moves.sort_custom(func(a, b):
+		var a_val: float = PieceValues.rank_value(a.captured_piece.get("type", "")) if a.is_capture() else -1.0
+		var b_val: float = PieceValues.rank_value(b.captured_piece.get("type", "")) if b.is_capture() else -1.0
+		return a_val > b_val
+	)

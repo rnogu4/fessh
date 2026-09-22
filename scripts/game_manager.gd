@@ -12,7 +12,9 @@ signal game_over(winner: Piece.Team)
 
 var grid: Array = []
 var rules := FesshRules.new(self)
-var move_quality_tracker := MoveQualityTracker.new(rules)
+var move_quality_tracker := MoveQualityTracker.new()
+var powerup_manager := PowerupManager.new(self, move_quality_tracker)
+var blocked_squares: Dictionary = {} # Vector2i -> turns_remaining, set by PowerupManager
 var game_active: bool = true
 
 var dragging_piece: Piece = null
@@ -104,28 +106,52 @@ func get_piece_at(cell: Vector2i) -> Piece:
 	if cell.x < 0 or cell.x >= grid[cell.y].size():
 		return null
 	return grid[cell.y][cell.x]
+
+func is_square_blocked(cell: Vector2i) -> bool:
+	return blocked_squares.has(cell)
 	
 #----------------Handles Piece Capture----------------
 func move_piece(from: Vector2i, to: Vector2i):
 	var piece = get_piece_at(from)
 	if piece == null:
 		return
-	var board_before := SearchBoard.from_game_manager(self)
 	# handle capture if a piece already exists at 'to'
 	var target = get_piece_at(to)
+	var captured_type: String = target.piece_type if target != null else ""
 	if target:
 		target.queue_free()
 	grid[from.y][from.x] = null
 	grid[to.y][to.x] = piece
 	piece.board_pos = to
 	piece.position = board.map_to_local(to)
-	var board_after := SearchBoard.from_game_manager(self)
-	move_quality_tracker.score_move(board_before, board_after, piece.team)
+	move_quality_tracker.score_move(piece.team, piece.piece_type, captured_type)
 	_on_move_made(piece, to)
 
+## Powerup action: relocate a piece to any empty, unblocked square, bypassing
+## normal movement rules entirely. Counts as that team's move for the turn.
+func teleport_piece(piece: Piece, to: Vector2i) -> bool:
+	if piece == null or not is_empty_and_unblocked(to):
+		return false
+	grid[piece.board_pos.y][piece.board_pos.x] = null
+	grid[to.y][to.x] = piece
+	piece.board_pos = to
+	piece.position = board.map_to_local(to)
+	move_quality_tracker.score_move(piece.team, piece.piece_type)
+	_on_move_made(piece, to)
+	return true
+
+func is_empty_and_unblocked(cell: Vector2i) -> bool:
+	return get_piece_at(cell) == null and not is_square_blocked(cell)
+
 func _on_move_made(piece: Piece, to: Vector2i) -> void:
-	TurnTracker.end_turn()
 	_check_game_over()
+	if not game_active:
+		return
+	powerup_manager.tick_turn_effects()
+	if powerup_manager.consume_extra_move(piece.team):
+		powerup_manager.turn_continues.emit(piece.team) # same team acts again, no end_turn()
+	else:
+		TurnTracker.end_turn()
 
 func _check_game_over() -> void:
 	var snapshot := SearchBoard.from_game_manager(self)
@@ -217,7 +243,7 @@ func valid_pawn_moves(from: Vector2i, piece, provider = self) -> Array:
 				var occupant = provider.get_piece_at(potential_move)
 				if occupant == null:
 					results.append(potential_move)
-				elif occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
+				elif occupant.team != piece.team && occupant.shielded_turns <= 0 && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
 					results.append(potential_move)   # backward straight CAN capture
 				else:
 					blocked_backward = true  # own piece blocks
@@ -225,7 +251,7 @@ func valid_pawn_moves(from: Vector2i, piece, provider = self) -> Array:
 			# diagonal — capture only
 			var occupant = provider.get_piece_at(potential_move)
 			# pawn can't capture queen
-			if occupant != null and occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
+			if occupant != null and occupant.team != piece.team && occupant.shielded_turns <= 0 && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
 				results.append(potential_move)
 	return results
 func valid_knight_moves(from: Vector2i, piece, provider = self) -> Array:
@@ -235,8 +261,8 @@ func valid_knight_moves(from: Vector2i, piece, provider = self) -> Array:
 		var occupant = provider.get_piece_at(potential_move)
 		if occupant == null:
 			results.append(potential_move)
-		# knight can't capture king or bishop
-		elif occupant.team != piece.team && (!occupant.piece_type.contains("bishop") && !occupant.piece_type.contains("king")):
+		# knight can't capture king or bishop, or a shielded piece
+		elif occupant.team != piece.team && occupant.shielded_turns <= 0 && (!occupant.piece_type.contains("bishop") && !occupant.piece_type.contains("king")):
 			results.append(potential_move)
 	return results
 func valid_rook_moves(from: Vector2i, piece, provider = self) -> Array:
@@ -248,8 +274,8 @@ func valid_rook_moves(from: Vector2i, piece, provider = self) -> Array:
 			var occupant = provider.get_piece_at(step)
 			if occupant == null:
 				results.append(step)
-			# rook can't capture pawns or king
-			elif occupant.team != piece.team && (!occupant.piece_type.contains("pawn") && !occupant.piece_type.contains("king")):
+			# rook can't capture pawns, king, or a shielded piece
+			elif occupant.team != piece.team && occupant.shielded_turns <= 0 && (!occupant.piece_type.contains("pawn") && !occupant.piece_type.contains("king")):
 				results.append(step)
 				break
 			else:
@@ -263,8 +289,8 @@ func valid_bishop_moves(from: Vector2i, piece, provider = self) -> Array:
 			var occupant = provider.get_piece_at(step)
 			if occupant == null:
 				results.append(step)
-			# bishop can't capture rook, pawns or king
-			elif occupant.team != piece.team && (!occupant.piece_type.contains("rook") && !occupant.piece_type.contains("king")):
+			# bishop can't capture rook, pawns, king, or a shielded piece
+			elif occupant.team != piece.team && occupant.shielded_turns <= 0 && (!occupant.piece_type.contains("rook") && !occupant.piece_type.contains("king")):
 				results.append(step)
 				break
 			else:
@@ -279,8 +305,8 @@ func valid_queen_moves(from: Vector2i, piece, provider = self) -> Array:
 			var occupant = provider.get_piece_at(move)
 			if occupant == null:
 				results.append(move)
-			# queen can't capture king
-			elif occupant.team != piece.team && !occupant.piece_type.contains("king"):
+			# queen can't capture king or a shielded piece
+			elif occupant.team != piece.team && occupant.shielded_turns <= 0 && !occupant.piece_type.contains("king"):
 				results.append(move)
 				break
 			else:
@@ -322,7 +348,7 @@ func get_all_valid_moves(from: Vector2i, provider = self) -> Array:
 	if MoveTable.king_table.has(piece.piece_type):
 		results = valid_king_moves(from, piece, provider)
 	
-	return results
+	return results.filter(func(cell): return not provider.is_square_blocked(cell))
 
 ## Simplified to delegate to get_all_valid_moves instead of re-implementing
 ## the capture matrix a second time -- the old knight branch here checked

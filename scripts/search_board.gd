@@ -9,6 +9,7 @@ const WIDTH = Board.WIDTH
 const HEIGHT = Board.HEIGHT
 
 var grid: Array # grid[y][x] = PieceStub or null
+var blocked_squares: Dictionary = {} # Vector2i -> turns_remaining, from the Block Square powerup
 
 func _init() -> void:
 	grid = []
@@ -26,7 +27,8 @@ static func from_game_manager(gm: GameManager) -> SearchBoard:
 		for x in WIDTH:
 			var piece = gm.get_piece_at(Vector2i(x, y))
 			if piece != null:
-				b.grid[y][x] = PieceStub.new(piece.piece_type, piece.team)
+				b.grid[y][x] = PieceStub.new(piece.piece_type, piece.team, piece.shielded_turns)
+	b.blocked_squares = gm.blocked_squares.duplicate()
 	return b
 
 func clone() -> SearchBoard:
@@ -35,7 +37,11 @@ func clone() -> SearchBoard:
 		for x in WIDTH:
 			var p = grid[y][x]
 			b.grid[y][x] = p.duplicate_stub() if p != null else null
+	b.blocked_squares = blocked_squares.duplicate()
 	return b
+
+func is_square_blocked(cell: Vector2i) -> bool:
+	return blocked_squares.has(cell)
 
 func get_piece_at(cell: Vector2i) -> Variant:
 	if cell.x < 0 or cell.x >= WIDTH or cell.y < 0 or cell.y >= HEIGHT:
