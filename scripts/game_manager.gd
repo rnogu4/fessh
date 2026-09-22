@@ -4,11 +4,16 @@ class_name GameManager
 const PIECE_SCENE = preload("res://scenes/piece.tscn")
 const VALID_SPOT_TEXTURE = preload("res://assets/sprites/tiles/valid_spot_2.0.png")
 
+signal game_over(winner: Piece.Team)
+
 @onready var board: TileMapLayer = $"../World/Board"
 @onready var pieces_layer: Node2D = $"../World/PiecesLayer"
 @onready var highlight_layer: Node2D = $"../World/HighlightLayer"
 
 var grid: Array = []
+var rules := FesshRules.new(self)
+var move_quality_tracker := MoveQualityTracker.new(rules)
+var game_active: bool = true
 
 var dragging_piece: Piece = null
 var drag_start_cell: Vector2i
@@ -71,6 +76,7 @@ var starting_layout = [
 func _ready() -> void:
 	init_grid()
 	spawn_pieces()
+	$"../BotController".setup(self, rules)
 
 func init_grid():
 	grid.clear()
@@ -104,6 +110,7 @@ func move_piece(from: Vector2i, to: Vector2i):
 	var piece = get_piece_at(from)
 	if piece == null:
 		return
+	var board_before := SearchBoard.from_game_manager(self)
 	# handle capture if a piece already exists at 'to'
 	var target = get_piece_at(to)
 	if target:
@@ -112,12 +119,26 @@ func move_piece(from: Vector2i, to: Vector2i):
 	grid[to.y][to.x] = piece
 	piece.board_pos = to
 	piece.position = board.map_to_local(to)
+	var board_after := SearchBoard.from_game_manager(self)
+	move_quality_tracker.score_move(board_before, board_after, piece.team)
 	_on_move_made(piece, to)
 
 func _on_move_made(piece: Piece, to: Vector2i) -> void:
 	TurnTracker.end_turn()
+	_check_game_over()
+
+func _check_game_over() -> void:
+	var snapshot := SearchBoard.from_game_manager(self)
+	var result := rules.is_terminal(snapshot)
+	if result["over"]:
+		game_active = false
+		game_over.emit(result["winner"])
+		print("Game over! Winner: ", result["winner"]) # placeholder until you hook up a real end screen
+
 #-----------Handles Piece Movement w/ Mouse-----------
 func _unhandled_input(event: InputEvent) -> void:
+	if not game_active:
+		return
 	var mouse_world_pos = board.get_global_mouse_position()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
@@ -171,7 +192,7 @@ func clear_valid_move_highlights() -> void:
 		sprite.queue_free()
 	highlight_sprites.clear()
 
-func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_pawn_moves(from: Vector2i, piece, provider = self) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.pawn_table[piece.piece_type][from]
 	var dir = MoveTable.pawn_offsets[piece.piece_type][0]  # true forward direction
@@ -185,7 +206,7 @@ func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
 			if is_forward:
 				if blocked_forward:
 					continue
-				var occupant = get_piece_at(potential_move)
+				var occupant = provider.get_piece_at(potential_move)
 				if occupant == null:
 					results.append(potential_move)
 				else:
@@ -193,7 +214,7 @@ func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
 			else:
 				if blocked_backward:
 					continue
-				var occupant = get_piece_at(potential_move)
+				var occupant = provider.get_piece_at(potential_move)
 				if occupant == null:
 					results.append(potential_move)
 				elif occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
@@ -202,29 +223,29 @@ func valid_pawn_moves(from: Vector2i, piece: Piece) -> Array:
 					blocked_backward = true  # own piece blocks
 		else:
 			# diagonal — capture only
-			var occupant = get_piece_at(potential_move)
+			var occupant = provider.get_piece_at(potential_move)
 			# pawn can't capture queen
 			if occupant != null and occupant.team != piece.team && (!occupant.piece_type.contains("queen") && !occupant.piece_type.contains("king")):
 				results.append(potential_move)
 	return results
-func valid_knight_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_knight_moves(from: Vector2i, piece, provider = self) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.knight_table[piece.piece_type][from]
 	for potential_move in moves_at_position:
-		var occupant = get_piece_at(potential_move)
+		var occupant = provider.get_piece_at(potential_move)
 		if occupant == null:
 			results.append(potential_move)
 		# knight can't capture king or bishop
 		elif occupant.team != piece.team && (!occupant.piece_type.contains("bishop") && !occupant.piece_type.contains("king")):
 			results.append(potential_move)
 	return results
-func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_rook_moves(from: Vector2i, piece, provider = self) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.rook_table[piece.piece_type][from]
 
 	for potential_move in moves_at_position:
 		for step in potential_move:
-			var occupant = get_piece_at(step)
+			var occupant = provider.get_piece_at(step)
 			if occupant == null:
 				results.append(step)
 			# rook can't capture pawns or king
@@ -234,12 +255,12 @@ func valid_rook_moves(from: Vector2i, piece: Piece) -> Array:
 			else:
 				break
 	return results
-func valid_bishop_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_bishop_moves(from: Vector2i, piece, provider = self) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.bishop_table[piece.piece_type][from]
 	for potential_move in moves_at_position:
 		for step in potential_move:
-			var occupant = get_piece_at(step)
+			var occupant = provider.get_piece_at(step)
 			if occupant == null:
 				results.append(step)
 			# bishop can't capture rook, pawns or king
@@ -249,13 +270,13 @@ func valid_bishop_moves(from: Vector2i, piece: Piece) -> Array:
 			else:
 				break
 	return results
-func valid_queen_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_queen_moves(from: Vector2i, piece, provider = self) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.queen_table[piece.piece_type][from]
 	
 	for potential_moves in moves_at_position:
 		for move in potential_moves:
-			var occupant = get_piece_at(move)
+			var occupant = provider.get_piece_at(move)
 			if occupant == null:
 				results.append(move)
 			# queen can't capture king
@@ -265,11 +286,11 @@ func valid_queen_moves(from: Vector2i, piece: Piece) -> Array:
 			else:
 				break
 	return results
-func valid_king_moves(from: Vector2i, piece: Piece) -> Array:
+func valid_king_moves(from: Vector2i, piece, provider = self) -> Array:
 	var results: Array = []
 	var moves_at_position = MoveTable.king_table[piece.piece_type][from]
 	for potential_move in moves_at_position:
-		var occupant = get_piece_at(potential_move)
+		var occupant = provider.get_piece_at(potential_move)
 		if occupant == null:
 			results.append(potential_move)
 		# king can't capture
@@ -277,70 +298,36 @@ func valid_king_moves(from: Vector2i, piece: Piece) -> Array:
 			continue
 	return results
 
-func get_all_valid_moves(from: Vector2i) -> Array:
-	var piece = get_piece_at(from)
+## `provider` must expose get_piece_at(cell) -> null or an object with
+## `.team` and `.piece_type` (a real Piece, or a PieceStub used by search).
+## Defaults to `self` so every existing call site (live game, mouse drag)
+## behaves exactly as before with no changes needed there.
+func get_all_valid_moves(from: Vector2i, provider = self) -> Array:
+	var piece = provider.get_piece_at(from)
 	if piece == null:
 		return []
 	
 	var results: Array = []
 
 	if MoveTable.pawn_table.has(piece.piece_type):
-		results = valid_pawn_moves(from, piece)
-
+		results = valid_pawn_moves(from, piece, provider)
 	if MoveTable.knight_table.has(piece.piece_type):
-		results = valid_knight_moves(from, piece)
-		#for move in MoveTable.knight_table[piece.piece_type][from]:
-		#	if is_valid_move(from, move):
-		#		results.append(move)
-
+		results = valid_knight_moves(from, piece, provider)
 	if MoveTable.rook_table.has(piece.piece_type):
-		results = valid_rook_moves(from, piece)
-		#for move in MoveTable.rook_table[piece.piece_type][from]:
-		#	for step_cell in move:
-		#		if is_valid_move(from, step_cell):
-		#			results.append(step_cell)
-		#		if get_piece_at(step_cell) != null:
-		#			break  # blocked — stop walking this path
+		results = valid_rook_moves(from, piece, provider)
 	if MoveTable.bishop_table.has(piece.piece_type):
-		results = valid_bishop_moves(from, piece)
+		results = valid_bishop_moves(from, piece, provider)
 	if MoveTable.queen_table.has(piece.piece_type):
-		results = valid_queen_moves(from, piece)
+		results = valid_queen_moves(from, piece, provider)
 	if MoveTable.king_table.has(piece.piece_type):
-		results = valid_king_moves(from, piece)
+		results = valid_king_moves(from, piece, provider)
 	
 	return results
 
-func is_valid_move(from: Vector2i, to: Vector2i) -> bool:
-	var piece = get_piece_at(from)
-	if piece == null:
-		return false
-	if to.x < 0 or to.x >= board.WIDTH or to.y < 0 or to.y >= board.HEIGHT:
-		return false
-	var target_piece = get_piece_at(to)
-	if target_piece and target_piece.team == piece.team:
-		return false  # can't capture your own piece
-	if MoveTable.pawn_table.has(piece.piece_type):
-		return to in valid_pawn_moves(from, piece)
-	if MoveTable.knight_table.has(piece.piece_type):
-		return to in MoveTable.knight_table[piece.piece_type][from]
-	if MoveTable.rook_table.has(piece.piece_type):
-		for ray in MoveTable.rook_table[piece.piece_type][from]:
-			for step_cell in ray:
-				if step_cell == to:
-					return true
-				if get_piece_at(step_cell) != null:
-					break  # something's in the way — this ray goes no further
-		return false
-	if MoveTable.bishop_table.has(piece.piece_type):
-		for ray in MoveTable.bishop_table[piece.piece_type][from]:
-			for step_cell in ray:
-				if step_cell == to:
-					return true
-				if get_piece_at(step_cell) != null:
-					break  # something's in the way — this ray goes no further
-		return false
-	if MoveTable.queen_table.has(piece.piece_type):
-		return to in valid_queen_moves(from, piece)
-	if MoveTable.king_table.has(piece.piece_type):
-		return to in valid_king_moves(from, piece)
-	return false
+## Simplified to delegate to get_all_valid_moves instead of re-implementing
+## the capture matrix a second time -- the old knight branch here checked
+## geometric reachability only (no occupancy/capture-exclusion check), which
+## meant it could validate illegal knight moves. This also means provider
+## now flows through here too, so search can reuse it directly.
+func is_valid_move(from: Vector2i, to: Vector2i, provider = self) -> bool:
+	return to in get_all_valid_moves(from, provider)
