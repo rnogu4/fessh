@@ -13,6 +13,7 @@ var rules: FesshRules
 var engine: FesshEngine
 var thread: Thread
 var profile: Dictionary
+var powerup_shop: PowerupShop # optional: assign from your scene setup script to auto show/hide it per level
 
 func setup(_game_manager: GameManager, _rules: FesshRules = null) -> void:
 	game_manager = _game_manager
@@ -28,6 +29,8 @@ func set_level(level: int) -> void:
 	difficulty_level = level
 	profile = Difficulty.profile_for_level(level)
 	game_manager.powerup_manager.enabled = profile["powerups_enabled"]
+	if powerup_shop != null:
+		powerup_shop.visible = profile["powerups_enabled"]
 
 ## turn_started fires once from TurnTracker._ready() AND after every
 ## end_turn(), so this one hook covers the bot going first or going second.
@@ -63,7 +66,7 @@ func _search_in_background(search_board: SearchBoard) -> void:
 func _apply_move(move: FesshMove) -> void:
 	if move != null:
 		_maybe_use_powerup(move)
-		game_manager.move_piece(move.from, move.to)
+		game_manager.move_piece(move.from, move.to, true)
 	else:
 		push_warning("BotController: no legal move found for %s" % bot_team)
 	if thread != null:
@@ -81,3 +84,8 @@ func _maybe_use_powerup(move: FesshMove) -> void:
 		var piece := game_manager.get_piece_at(move.from)
 		if piece != null:
 			game_manager.powerup_manager.buy_shield(bot_team, piece)
+			
+func _exit_tree() -> void:
+	if thread != null and thread.is_alive():
+		thread.wait_to_finish()
+		thread = null

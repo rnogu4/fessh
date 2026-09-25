@@ -13,8 +13,8 @@ static var RANK := {
 	"rook": 5.0,
 	"queen": 9.0,
 	"king": 0.0, # can't be captured, and its movement is already incentivized
-	             # by the win condition itself -- bump this above 0 if you
-	             # want king moves to also earn currency.
+				 # by the win condition itself -- bump this above 0 if you
+				 # want king moves to also earn currency.
 }
 
 static func base_type(piece_type: String) -> String:

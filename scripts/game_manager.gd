@@ -21,6 +21,14 @@ var dragging_piece: Piece = null
 var drag_start_cell: Vector2i
 var highlight_sprites: Array[Sprite2D] = []
 
+const GREEN_TILE_BLOCK_TEXTURE = preload("res://assets/sprites/tiles/green_tile_block.png")
+const RED_TILE_BLOCK_TEXTURE = preload("res://assets/sprites/tiles/red_tile_block.png")
+
+@onready var player_move_sound: AudioStreamPlayer2D = $"../PlayerMoveSound"
+@onready var bot_move_sound: AudioStreamPlayer2D = $"../BotMoveSound"
+
+var blocked_overlay_sprites: Dictionary = {} # Vector2i -> Sprite2D
+
 var textures := {
 	"a_pawn": preload("res://assets/sprites/pieces/abyssal_ith'ka_(pawn).png"),
 	"a_rook": preload("res://assets/sprites/pieces/abyssal_vraalth_(rook).png"),
@@ -78,7 +86,52 @@ var starting_layout = [
 func _ready() -> void:
 	init_grid()
 	spawn_pieces()
-	$"../BotController".setup(self, rules)
+	var bot_controller = $"../BotController"
+	bot_controller.setup(self, rules)
+	_wire_powerup_shop(bot_controller)
+
+## Looks for a PowerupShop node and wires it up if one exists -- safe to
+## call even before you've added the shop to your scene. Adjust shop_path
+## below to match wherever you actually place the shop node.
+func _wire_powerup_shop(bot_controller) -> void:
+	var shop_path := "../HUD/PowerupShop"
+	if not has_node(shop_path):
+		return
+	var shop: PowerupShop = get_node(shop_path)
+	var player_team: Piece.Team = Piece.Team.REEF if bot_controller.bot_team == Piece.Team.ABYSSAL else Piece.Team.ABYSSAL
+	shop.setup(self, player_team)
+	bot_controller.powerup_shop = shop
+	bot_controller.set_level(bot_controller.difficulty_level) # re-apply now that the shop reference exists
+
+func add_block_overlay(cell: Vector2i) -> void:
+	if blocked_overlay_sprites.has(cell):
+		return
+		
+	var sprite := Sprite2D.new()
+	
+	# Match the board's alternating tile logic: (x + y) % 2 == 0 is Green, else Red
+	if (cell.x + cell.y) % 2 == 0:
+		sprite.texture = GREEN_TILE_BLOCK_TEXTURE
+	else:
+		sprite.texture = RED_TILE_BLOCK_TEXTURE
+		
+	sprite.position = board.map_to_local(cell)
+	highlight_layer.add_child(sprite)
+	blocked_overlay_sprites[cell] = sprite
+
+func remove_block_overlay(cell: Vector2i) -> void:
+	if blocked_overlay_sprites.has(cell):
+		var sprite: Sprite2D = blocked_overlay_sprites[cell]
+		sprite.queue_free()
+		blocked_overlay_sprites.erase(cell)
+
+func play_move_sound(is_bot: bool) -> void:
+	if is_bot:
+		if bot_move_sound != null:
+			bot_move_sound.play()
+	else:
+		if player_move_sound != null:
+			player_move_sound.play()
 
 func init_grid():
 	grid.clear()
@@ -111,7 +164,7 @@ func is_square_blocked(cell: Vector2i) -> bool:
 	return blocked_squares.has(cell)
 	
 #----------------Handles Piece Capture----------------
-func move_piece(from: Vector2i, to: Vector2i):
+func move_piece(from: Vector2i, to: Vector2i, is_bot_move: bool = false):
 	var piece = get_piece_at(from)
 	if piece == null:
 		return
@@ -126,6 +179,7 @@ func move_piece(from: Vector2i, to: Vector2i):
 	piece.position = board.map_to_local(to)
 	move_quality_tracker.score_move(piece.team, piece.piece_type, captured_type)
 	_on_move_made(piece, to)
+	play_move_sound(is_bot_move)
 
 ## Powerup action: relocate a piece to any empty, unblocked square, bypassing
 ## normal movement rules entirely. Counts as that team's move for the turn.
@@ -136,7 +190,6 @@ func teleport_piece(piece: Piece, to: Vector2i) -> bool:
 	grid[to.y][to.x] = piece
 	piece.board_pos = to
 	piece.position = board.map_to_local(to)
-	move_quality_tracker.score_move(piece.team, piece.piece_type)
 	_on_move_made(piece, to)
 	return true
 
@@ -166,6 +219,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not game_active:
 		return
 	var mouse_world_pos = board.get_global_mouse_position()
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if powerup_manager.targeting_mode != "":
+			var cell = board.local_to_map(board.to_local(mouse_world_pos))
+			powerup_manager.handle_targeting_click(cell)
+			return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			try_start_drag()

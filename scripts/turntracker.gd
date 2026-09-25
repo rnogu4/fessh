@@ -10,6 +10,13 @@ var teams: Array[String] = ["Abyssal", "Reef"]
 func _ready() -> void:
 	turn_started.emit(current_team, turn_number)
 
+## Called by LevelManager when a new level's match starts, so turn state
+## doesn't carry over from the previous level's match.
+func reset(starting_team: String = "Reef") -> void:
+	current_team = starting_team
+	turn_number = 1
+	turn_started.emit(current_team, turn_number)
+
 func end_turn() -> void:
 	var current_index = teams.find(current_team)
 	var next_index = (current_index + 1) % teams.size()

@@ -14,9 +14,21 @@ var game_manager: GameManager
 ## instead of an equality test.
 const ABYSSAL_HOME_ROW := 0
 const REEF_HOME_ROW := SearchBoard.HEIGHT - 1 # 11
+const CENTER_COL := 4 # where the enemy king sits on your home row
 
 func _init(_game_manager: GameManager) -> void:
 	game_manager = _game_manager
+
+## The 5 squares that box in the enemy king on a given team's own home rows:
+## the 3 pawns directly in front of it, and the 2 pieces flanking it on the
+## back rank (the king itself occupies the center square between them).
+static func guard_squares_for(team: Piece.Team) -> Array:
+	var home_row: int = ABYSSAL_HOME_ROW if team == Piece.Team.ABYSSAL else REEF_HOME_ROW
+	var pawn_row: int = home_row + 1 if team == Piece.Team.ABYSSAL else home_row - 1
+	return [
+		Vector2i(CENTER_COL - 1, pawn_row), Vector2i(CENTER_COL, pawn_row), Vector2i(CENTER_COL + 1, pawn_row),
+		Vector2i(CENTER_COL - 1, home_row), Vector2i(CENTER_COL + 1, home_row),
+	]
 
 func get_legal_moves(board: SearchBoard, team: Piece.Team) -> Array:
 	var moves: Array = []
@@ -75,5 +87,20 @@ func evaluate(board: SearchBoard, team: Piece.Team) -> float:
 				continue
 			var value: float = PieceValues.rank_value(piece.piece_type) * MATERIAL_WEIGHT
 			score += value if piece.team == team else -value
+
+	# Cage integrity -- soft bias, not a rule: penalize this side's own guard
+	# squares standing empty (or taken by an intruder), and reward the
+	# opponent's cage falling apart. Tune GUARD_PENALTY; since it's additive
+	# with everything else, a big enough capture or king-progress gain will
+	# still outweigh it, which is the "only move when viable" behavior.
+	const GUARD_PENALTY := 6.0
+	for square in guard_squares_for(team):
+		var occupant = board.get_piece_at(square)
+		if occupant == null or occupant.team != team:
+			score -= GUARD_PENALTY
+	for square in guard_squares_for(opponent):
+		var occupant = board.get_piece_at(square)
+		if occupant == null or occupant.team != opponent:
+			score += GUARD_PENALTY
 
 	return score

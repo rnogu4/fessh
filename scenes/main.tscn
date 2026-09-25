@@ -5,6 +5,14 @@
 [ext_resource type="Script" uid="uid://bifqvmg5pmh8w" path="res://scripts/game_manager.gd" id="1_sugp2"]
 [ext_resource type="Script" uid="uid://dll3612qoqxk3" path="res://scripts/turnHUD.gd" id="4_jyhfs"]
 [ext_resource type="Script" uid="uid://b370fngdxyaws" path="res://scripts/bot_controller.gd" id="4_tbgi4"]
+[ext_resource type="Script" uid="uid://cg7x40n1o6evm" path="res://scripts/powerup_shop.gd" id="6_ya4ey"]
+[ext_resource type="Texture2D" uid="uid://crquuawdn4qc5" path="res://assets/sprites/tiles/shop.png" id="7_eb6dy"]
+[ext_resource type="Texture2D" uid="uid://dpi2e7xbiavw8" path="res://assets/sprites/powerups/powerups2.png" id="8_trceg"]
+[ext_resource type="Texture2D" uid="uid://whpspkhe0eqt" path="res://assets/sprites/powerups/powerups1.png" id="9_a8y0u"]
+[ext_resource type="Texture2D" uid="uid://ckoex654c5n2k" path="res://assets/sprites/powerups/powerups0.png" id="10_jkv2x"]
+[ext_resource type="Texture2D" uid="uid://d22q7ms7y1oeq" path="res://assets/sprites/powerups/powerups3.png" id="11_jbj1t"]
+[ext_resource type="AudioStream" uid="uid://by5sbbqu3t71r" path="res://assets/audio/move.mp3" id="12_trceg"]
+[ext_resource type="AudioStream" uid="uid://bkn5cn6f8nssq" path="res://assets/audio/enemy_move.mp3" id="13_a8y0u"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_sugp2"]
 texture = ExtResource("1_0wfyh")
@@ -20,7 +28,7 @@ sources/0 = SubResource("TileSetAtlasSource_sugp2")
 
 [node name="Main" type="Node2D" unique_id=1208276849]
 
-[node name="Game Manager" type="Node" parent="." unique_id=1831188707]
+[node name="GameManager" type="Node" parent="." unique_id=1831188707]
 script = ExtResource("1_sugp2")
 
 [node name="World" type="Node2D" parent="." unique_id=1247502175]
@@ -35,7 +43,7 @@ script = ExtResource("1_o5qli")
 [node name="HighlightLayer" type="Node2D" parent="World" unique_id=886510418]
 texture_filter = 1
 
-[node name="Camera2D" type="Camera2D" parent="World" unique_id=1388688337]
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1388688337]
 offset = Vector2(75, 96)
 zoom = Vector2(3, 3)
 
@@ -77,6 +85,24 @@ offset_transform_enabled = true
 offset_transform_position = Vector2(900, 100)
 offset_transform_scale = Vector2(2, 2)
 
+[node name="PowerupShop" type="Control" parent="HUD" unique_id=1877497757]
+custom_minimum_size = Vector2(256, 256)
+layout_mode = 3
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 27.0
+offset_top = 26.0
+offset_right = 283.0
+offset_bottom = 282.0
+grow_vertical = 2
+script = ExtResource("6_ya4ey")
+shop_background = ExtResource("7_eb6dy")
+shield_icon = ExtResource("8_trceg")
+block_square_icon = ExtResource("9_a8y0u")
+teleport_icon = ExtResource("10_jkv2x")
+extra_move_icon = ExtResource("11_jbj1t")
+
 [node name="Main Screen" type="Node2D" parent="." unique_id=2130372543]
 
 [node name="Level1" type="Node2D" parent="." unique_id=753108227]
@@ -84,3 +110,9 @@ offset_transform_scale = Vector2(2, 2)
 [node name="Level2" type="Node2D" parent="." unique_id=1724663077]
 
 [node name="Level3" type="Node2D" parent="." unique_id=595156173]
+
+[node name="PlayerMoveSound" type="AudioStreamPlayer2D" parent="." unique_id=230730019]
+stream = ExtResource("12_trceg")
+
+[node name="BotMoveSound" type="AudioStreamPlayer2D" parent="." unique_id=2069124290]
+stream = ExtResource("13_a8y0u")

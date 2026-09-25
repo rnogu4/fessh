@@ -19,9 +19,11 @@ config/icon="res://icon.svg"
 
 MoveTable="*uid://dgv61gyyrwlfr"
 TurnTracker="*uid://2vswrpcocny4"
+LevelManager="*uid://b7nwsrpx4pyla"
 
 [display]
 
+window/size/mode=3
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
@@ -31,4 +33,5 @@ window/stretch/aspect="expand"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
