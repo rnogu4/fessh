@@ -7,9 +7,9 @@ const MAX_LEVEL := 3
 var current_level: int = 1
 var game_manager: GameManager
 var bot_controller: BotController
+@export var npc_portrait: Texture2D
 
 func _ready() -> void:
-	# Wait until the current scene is fully initialized
 	call_deferred("_wire_current_scene")
 
 func _wire_current_scene() -> void:
@@ -35,7 +35,7 @@ func _wire_current_scene() -> void:
 	TurnTracker.reset()
 	bot_controller.set_level(current_level)
 
-func _on_game_over(winner: Piece.Team) -> void:
+func _on_game_over(winner: Piece.Team) -> void:	
 	if current_level < MAX_LEVEL:
 		current_level += 1
 		_reload_level()
@@ -46,13 +46,10 @@ func _on_game_over(winner: Piece.Team) -> void:
 			_show_victory_screen()
 
 func _reload_level() -> void:
-	# Ensure bot search thread is safely finished before scene deletion
 	if bot_controller != null and bot_controller.thread != null and bot_controller.thread.is_alive():
 		bot_controller.thread.wait_to_finish()
-
 	get_tree().reload_current_scene()
 	
-	# Wait for node tree change signal instead of frame-guessing
 	await get_tree().node_added
 	await get_tree().process_frame
 	

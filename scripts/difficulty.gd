@@ -13,22 +13,22 @@ static func profile_for_level(level: int) -> Dictionary:
 		1:
 			return {
 				"depth": 2,
-				"randomness_margin": 2.0,
-				"blunder_chance": 0.10,
+				"randomness_margin": 5.0,
+				"blunder_chance": 0.20,
 				"powerups_enabled": false,
 			}
 		2:
 			return {
 				"depth": 3,
-				"randomness_margin": 1.5,
-				"blunder_chance": 0.07,
+				"randomness_margin": 4.5,
+				"blunder_chance": 0.15,
 				"powerups_enabled": true,
 			}
 		3:
 			return {
 				"depth": 3,
-				"randomness_margin": 1.0,
-				"blunder_chance": 0.03,
+				"randomness_margin": 4.0,
+				"blunder_chance": 0.10,
 				"powerups_enabled": true,
 			}
 		_:

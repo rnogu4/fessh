@@ -1,35 +1,23 @@
 class_name PowerupManager
 extends RefCounted
 
-## Same shop, same costs, for both the player and the bot -- call buy_*()
-## from your UI for the player, and from BotController for the bot.
-## Costs and durations are starting points to balance through playtesting,
-## same caveat as Difficulty: there's no formula to derive these from,
-## they just need to feel right once you're actually playing games.
+signal turn_continues(team: Piece.Team)
 
-signal turn_continues(team: Piece.Team) # emitted instead of a normal turn pass, for Extra Move
+const SHIELD_COST := 30.0
+const SHIELD_DURATION := 6
 
-const SHIELD_COST := 8.0
-const SHIELD_DURATION := 3   # turns of protection
+const BLOCK_SQUARE_COST := 30.0
+const BLOCK_DURATION := 6
 
-const BLOCK_SQUARE_COST := 6.0
-const BLOCK_DURATION := 3    # turns before the claim expires
+const TELEPORT_COST := 30.0
 
-const TELEPORT_COST := 10.0
-
-const EXTRA_MOVE_COST := 15.0
+const EXTRA_MOVE_COST := 80.0
 
 var game_manager: GameManager
 var currency: MoveQualityTracker
-var pending_extra_move: Dictionary = {} # Piece.Team -> bool
-var enabled: bool = false # set by BotController.set_level() per Difficulty profile
+var pending_extra_move: Dictionary = {}
+var enabled: bool = false
 
-## ---- Click-to-target flow, for the player's shop UI ----
-## Shield/Block Square/Teleport need the player to pick a piece or square
-## after buying; Extra Move doesn't (call buy_extra_move directly from its
-## button). The shop calls begin_targeting() on button press; GameManager's
-## _unhandled_input calls handle_targeting_click() on the next board click
-## instead of treating it as a normal move.
 var targeting_mode: String = "" # "", "shield", "block_square", "teleport"
 var targeting_team: Piece.Team
 var teleport_source_piece: Piece = null
@@ -43,8 +31,6 @@ func cancel_targeting() -> void:
 	targeting_mode = ""
 	teleport_source_piece = null
 
-## Returns true if the click was consumed as a powerup target (so
-## GameManager should skip its normal drag/move handling for this click).
 func handle_targeting_click(cell: Vector2i) -> bool:
 	if targeting_mode == "":
 		return false
@@ -93,9 +79,6 @@ func buy_block_square(team: Piece.Team, cell: Vector2i) -> bool:
 	game_manager.add_block_overlay(cell)
 	return true
 
-## ---- Teleport ----
-## Spends currency, then performs the move itself (via GameManager.teleport_piece,
-## which also ends the turn / passes to Extra Move handling like any other move).
 func buy_teleport(team: Piece.Team, piece: Piece, to: Vector2i) -> bool:
 	if not enabled or piece == null or piece.team != team or piece.piece_type == "a_king" or piece.piece_type == "r_king":
 		return false

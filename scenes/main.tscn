@@ -103,14 +103,6 @@ block_square_icon = ExtResource("9_a8y0u")
 teleport_icon = ExtResource("10_jkv2x")
 extra_move_icon = ExtResource("11_jbj1t")
 
-[node name="Main Screen" type="Node2D" parent="." unique_id=2130372543]
-
-[node name="Level1" type="Node2D" parent="." unique_id=753108227]
-
-[node name="Level2" type="Node2D" parent="." unique_id=1724663077]
-
-[node name="Level3" type="Node2D" parent="." unique_id=595156173]
-
 [node name="PlayerMoveSound" type="AudioStreamPlayer2D" parent="." unique_id=230730019]
 stream = ExtResource("12_trceg")
 

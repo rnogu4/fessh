@@ -13,10 +13,10 @@ func _on_turn_changed(new_team: String) -> void:
 
 	# optional: flip color per team
 	match new_team:
-		"a":
-			turn_label.modulate = Color.CORNFLOWER_BLUE
-		"r":
-			turn_label.modulate = Color.INDIAN_RED
+		"Reef":
+			turn_label.modulate = Color.MEDIUM_SPRING_GREEN
+		"Abyssal":
+			turn_label.modulate = Color.DEEP_PINK
 
 func _on_turn_started(team: String, turn_number: int) -> void:
 	# useful if you want a "Turn 4" style counter somewhere too

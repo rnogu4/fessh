@@ -57,6 +57,8 @@ func take_turn() -> void:
 	thread = Thread.new()
 	thread.start(_search_in_background.bind(search_board))
 
+@export var move_delay_seconds: float = 1.0 # pause between deciding and actually moving
+
 func _search_in_background(search_board: SearchBoard) -> void:
 	var best_move: FesshMove = engine.find_best_move(
 		search_board, bot_team, profile["depth"], profile["randomness_margin"], profile["blunder_chance"]
@@ -65,6 +67,8 @@ func _search_in_background(search_board: SearchBoard) -> void:
 
 func _apply_move(move: FesshMove) -> void:
 	if move != null:
+		if move_delay_seconds > 0.0:
+			await get_tree().create_timer(move_delay_seconds).timeout
 		_maybe_use_powerup(move)
 		game_manager.move_piece(move.from, move.to, true)
 	else:
