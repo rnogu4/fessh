@@ -7,7 +7,6 @@ const MAX_LEVEL := 3
 var current_level: int = 1
 var game_manager: GameManager
 var bot_controller: BotController
-@export var npc_portrait: Texture2D
 
 func _ready() -> void:
 	call_deferred("_wire_current_scene")

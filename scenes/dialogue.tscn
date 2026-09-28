@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://cods7tj5hnlvp"]
+
+[ext_resource type="Script" uid="uid://cyoj8dc8jfyi6" path="res://scripts/dialogue.gd" id="1_3n4vj"]
+[ext_resource type="Texture2D" uid="uid://bcpo4n75tm2yg" path="res://assets/sprites/character/janitor.png" id="2_bfpow"]
+
+[node name="Dialogue" type="CanvasLayer" unique_id=142235397]
+script = ExtResource("1_3n4vj")
+npc_portrait = ExtResource("2_bfpow")

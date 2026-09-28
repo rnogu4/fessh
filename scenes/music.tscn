@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://bkmk2xmbujl30"]
+
+[ext_resource type="AudioStream" uid="uid://khegysmmxw37" path="res://assets/audio/chess.ogg" id="1_05ggv"]
+
+[node name="Music" type="AudioStreamPlayer2D" unique_id=1722786743]
+stream = ExtResource("1_05ggv")
+volume_db = -10.0
+pitch_scale = 1.02
+autoplay = true

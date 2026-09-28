@@ -26,6 +26,8 @@ const RED_TILE_BLOCK_TEXTURE = preload("res://assets/sprites/tiles/red_tile_bloc
 
 @onready var player_move_sound: AudioStreamPlayer2D = $"../PlayerMoveSound"
 @onready var bot_move_sound: AudioStreamPlayer2D = $"../BotMoveSound"
+@onready var splash: AudioStreamPlayer2D = $"../Splash"
+const SPLASH_SCENE = preload("res://scenes/splash.tscn")
 
 var blocked_overlay_sprites: Dictionary = {} # Vector2i -> Sprite2D
 
@@ -172,14 +174,26 @@ func move_piece(from: Vector2i, to: Vector2i, is_bot_move: bool = false):
 	var target = get_piece_at(to)
 	var captured_type: String = target.piece_type if target != null else ""
 	if target:
+		play_splash(to)
 		target.queue_free()
+		splash.play()
+	else:
+		play_move_sound(is_bot_move)
 	grid[from.y][from.x] = null
 	grid[to.y][to.x] = piece
 	piece.board_pos = to
 	piece.position = board.map_to_local(to)
 	move_quality_tracker.score_move(piece.team, piece.piece_type, captured_type)
 	_on_move_made(piece, to)
-	play_move_sound(is_bot_move)
+
+func play_splash(cell: Vector2i) -> void:
+	var splash = SPLASH_SCENE.instantiate()
+	splash.position = board.map_to_local(cell)
+	splash.z_index = 3 # above pieces
+	pieces_layer.add_child(splash)
+	splash.play("splash") # your animation's name in SpriteFrames
+	await get_tree().create_timer(1.0).timeout
+	splash.queue_free()
 
 ## Powerup action: relocate a piece to any empty, unblocked square, bypassing
 ## normal movement rules entirely. Counts as that team's move for the turn.

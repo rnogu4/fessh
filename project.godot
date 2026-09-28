@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 MoveTable="*uid://dgv61gyyrwlfr"
 TurnTracker="*uid://2vswrpcocny4"
 LevelManager="*uid://b7nwsrpx4pyla"
+Music="*uid://bkmk2xmbujl30"
 
 [display]
 
